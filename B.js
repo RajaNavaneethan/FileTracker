@@ -1,0 +1,1 @@
+var a = "this is some other text for testing";
