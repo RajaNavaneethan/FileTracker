@@ -1,1 +1,2 @@
-var a = "this is some other text for testing";
+adding the text into the file
+some more changes

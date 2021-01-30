@@ -1,40 +1,53 @@
-var initdata= require('./file-lock.json')
 // var init = require('./Watcher')
 var path = require('path');
 var crypto = require('crypto');
 var fs = require('fs')
-
-const checkIsAvailable = (filename) => {
-    if(initdata.hasOwnProperty(filename))
-        return true;
-    for (var key in initdata) {
-        if (initdata.hasOwnProperty(key)) {
-            var val = initdata[key];
-            let decoder = Buffer.from(val, "base64");      
-            console.log(key+`--->`+decoder);
-        }
-    }
-    return -1;
+const {diffStringsUnified} = require('jest-diff');
+try{
+    var initdata= require('./file-lock.json')
 }
-var getHash = ( content ) => {				
-    var hash = crypto.createHash('md5');
-    data = hash.update(content, 'utf-8');
-    gen_hash= data.digest('hex');
-    return gen_hash;
+catch(E)
+{
+    console.error('PLEASE INITIALISE THE FILE TRACKER WITH INIT.JS')
+    process.exit(1);
 }
+const options = {
+    aAnnotation: 'Modified/added',
+    bAnnotation: 'Removed',
+    // aIndicator : '+',
+    // bIndicator : '-',
+    includeChangeCounts : true
+  };
 
+const algorithm = 'aes-192-cbc';
+const password = 'Password used to generate key';
 datareader = async (moveFrom)=>{
     let data = {}
     try {
         const files = await fs.promises.readdir( moveFrom );
         for( const file of files ) {
-            if(file.toUpperCase().localeCompare('WATCHER.JS')!==0 && file.toUpperCase().localeCompare('FILE-LOCK.JSON')!==0 && file.toUpperCase().localeCompare('STATUS.JS')!==0)
+            if(file.toUpperCase().localeCompare('.GIT')!==0 && file.toUpperCase().localeCompare('INIT.JS')!==0 && file.toUpperCase().localeCompare('FILE-LOCK.JSON')!==0 && file.toUpperCase().localeCompare('STATUS.JS')!==0 && file.toUpperCase().localeCompare('NODE_MODULES')!==0 && file.toUpperCase().localeCompare('PACKAGE.JSON')!==0 && file.toUpperCase().localeCompare('PACKAGE-LOCK.JSON')!==0)            // if(filecontent.indexOf(file)==-1)
+            // if(filecontent.indexOf(file)==-1)
             {
                 const fromPath = path.join( moveFrom, file );
                 const stat = await fs.promises.stat( fromPath );
                 if( stat.isFile() )
                 {
-                    data[file] = getHash(fs.readFileSync(fromPath,'utf-8'));
+                    //getHash(fs.readFileSync(fromPath,'utf-8'));
+                    crypto.scrypt(password, 'salt', 24, (err, key) => {
+                        if (err) throw err;
+                        // Then, we'll generate a random initialization vector
+                        crypto.randomFill(new Uint8Array(16), (err, iv1) => {
+                          if (err) throw err;
+                          const iv = Buffer.alloc(16, 0); // Initialization vector.
+                          const cipher = crypto.createCipheriv(algorithm, key, iv);
+                      
+                          let encrypted = cipher.update(fs.readFileSync(fromPath,'utf-8'), 'utf8', 'hex');
+                          encrypted += cipher.final('hex');
+                        //   console.log(encrypted);
+                          data[file] = encrypted;
+                        });
+                      });
                 } 
                 else if( stat.isDirectory() )
                 {
@@ -67,7 +80,20 @@ let compare= (finaldata,initdata) => {
             if(typeof finaldata[key]==="string") // what if its a file just compare the hashes of the files
             {
                 if(finaldata[key]!==initdata[key])
+                {
                     console.log(`the file ` + key+ ` has been modified`)
+                    const key1 = crypto.scryptSync(password, 'salt', 24);
+                    // The IV is usually passed along with the ciphertext.
+                    const iv = Buffer.alloc(16, 0); // Initialization vector.
+                    const decipher = crypto.createDecipheriv(algorithm, key1, iv);
+                    const decipher1 = crypto.createDecipheriv(algorithm, key1, iv);
+                    // Encrypted using same algorithm, key and iv.
+                    let decrypted = decipher.update(finaldata[key], 'hex', 'utf8');
+                    decrypted += decipher.final('utf8');
+                    let decrypted1 = decipher1.update(initdata[key], 'hex', 'utf8');
+                    decrypted1 += decipher1.final('utf8');
+                    console.log(diffStringsUnified(decrypted,decrypted1,options));
+                }
             }
             else
             {
@@ -90,6 +116,5 @@ let compare= (finaldata,initdata) => {
 }
 let printData =   (async () => {
     let data = await  datareader('./');
-    console.log(`printing final data`,data)
-    compare(data,initdata);
+    setTimeout(()=>compare(data,initdata),1000);
 })()

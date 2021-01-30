@@ -29,18 +29,32 @@ var getHash = ( content ) => {
     gen_hash= data.digest('hex');
     return gen_hash;
 }
+const algorithm = 'aes-192-cbc';
+const password = 'Password used to generate key';
 datareader = async (moveFrom)=>{
     let data = {}
     try {
         const files = await fs.promises.readdir( moveFrom );
         for( const file of files ) {
-            if(file.toUpperCase().localeCompare('WATCHER.JS')!==0 && file.toUpperCase().localeCompare('FILE-LOCK.JSON')!==0 && file.toUpperCase().localeCompare('STATUS.JS')!==0)
+            if(file.toUpperCase().localeCompare('.GIT')!==0 && file.toUpperCase().localeCompare('INIT.JS')!==0 && file.toUpperCase().localeCompare('FILE-LOCK.JSON')!==0 && file.toUpperCase().localeCompare('STATUS.JS')!==0 && file.toUpperCase().localeCompare('NODE_MODULES')!==0 && file.toUpperCase().localeCompare('PACKAGE.JSON')!==0 && file.toUpperCase().localeCompare('PACKAGE-LOCK.JSON')!==0)            // if(filecontent.indexOf(file)==-1)
             {
                 const fromPath = path.join( moveFrom, file );
                 const stat = await fs.promises.stat( fromPath );
-                if( stat.isFile() )
+                if( stat.isFile())
                 {
-                    data[file] = getHash(fs.readFileSync(fromPath,'utf-8'));
+                    crypto.scrypt(password, 'salt', 24, (err, key) => {
+                        if (err) throw err;
+                        // Then, we'll generate a random initialization vector
+                        crypto.randomFill(new Uint8Array(16), (err, iv1) => {
+                          if (err) throw err;
+                          const iv = Buffer.alloc(16, 0); // Initialization vector.
+                          const cipher = crypto.createCipheriv(algorithm, key, iv);
+                          let encrypted = cipher.update(fs.readFileSync(fromPath,'utf-8'), 'utf8', 'hex');
+                          encrypted += cipher.final('hex');
+                          data[file] = encrypted;
+
+                        });
+                      });
                 } 
                 else if( stat.isDirectory() )
                 {
@@ -59,16 +73,13 @@ datareader = async (moveFrom)=>{
 }
 let printData =   (async () => {
     let data = await  datareader(moveFrom1);
-    console.log(`printing data `,data)
-    fs.truncate("file-lock.json", 0, function() {
+    setTimeout(()=>fs.truncate("file-lock.json", 0, function() {
         fs.writeFile("file-lock.json", JSON.stringify(data), function (err) {
             if (err) {
                 return console.log("Error writing file: " + err);
             }
         });
-    });
+    }),1000);
 
   })()
-// )(moveFrom1); // Wrap in pacrenthesis and call now
-console.log(printData)
  

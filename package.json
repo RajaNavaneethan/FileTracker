@@ -1,0 +1,23 @@
+{
+  "name": "file-tracker",
+  "version": "1.0.0",
+  "description": "A File tracking component to find the changes made in a particular directory and its sub directories",
+  "main": "A.js",
+  "dependencies": {
+    "jest-diff": "^26.6.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RajaNavaneethan/FileTracker.git"
+  },
+  "author": "Raja Navaneethan",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/RajaNavaneethan/FileTracker/issues"
+  },
+  "homepage": "https://github.com/RajaNavaneethan/FileTracker#readme"
+}
